@@ -93,6 +93,10 @@ sub windowEntries {
     
     $pictAlias = &packAliasRec(%$pictAliasFields);
 
+    # NB Finder on Mavericks needs this window size adjustment.
+    $width += 1;
+    $height -= 1;
+
     return &makeEntries(".",             # DSDB entries for the root
                         vstl => 'icnv',  # open in icon view mode
 
