@@ -39,7 +39,7 @@ Finally, create the dmg image:
         -convert UDBZ \
         MyApp.dmg
 
-**NB** those numbers, e.g. `150,150`, are the coordinates for center of the icon.
+**NB** those numbers, e.g. `144,144`, are the coordinates for center of the icon.
 
 And try it out:
 
@@ -51,4 +51,4 @@ And try it out:
 
 **NB** I'm still looking for a way to automatically set the correct dmg type.
 
-**NB** I'm working on a script to automatically generate the `.png`file, `-file` and `-symlink` arguments from a [GIMP](http://gimp.org) xcf file.  You'll be able to layout everything in GIMP!
+**NB** I'm working on a script to automatically generate the `.png` file, `-file` and `-symlink` arguments from a [GIMP](http://gimp.org) xcf file.  You'll be able to layout everything in GIMP!
