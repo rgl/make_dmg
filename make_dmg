@@ -487,6 +487,19 @@ ETX
     # Detach the image.
     $dmg->detach;
 
+    # Make sure the dmg image file is at least 2MB.
+    # NB on smaller volumes, hdiutil sets the volume type to 4, but we
+    #    expect it to be 5 on the .DS_Store file.  this force it to 5.
+    # NB instead of checking the dmg image file size we could check the
+    #    "cur" value returned by hdiutil resize -limits.  but that's
+    #    more troublesome to parse...
+    if (stat($outfile)->size < 2099200) {
+        my(@cmd) = ('hdiutil', 'resize', '-size', '2m', $outfile);
+        &::printcmd(@cmd);
+        system(@cmd) == 0
+            or die "'hdiutil resize' failed, died";
+    }
+
     # Convert to compressed, read-only format.
     $dmg->convert($final_format) if (defined $final_format);
     
