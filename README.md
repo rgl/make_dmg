@@ -10,8 +10,8 @@ You can:
 * set the volume icon
 * set the volume name
 * set a background image
-  * from a gimp xcf file (recommended)
-  * from a png or jpeg file
+    * from a gimp xcf file (recommended)
+    * from a png or jpeg file
 * set the icon size
 * set the window location
 
@@ -96,12 +96,12 @@ Gimp layers are used to position the icons.  The layer name is interpreted.  If 
 
     a make_dmg `-file` parameter is generated.  for example, if the layer name is:
 
-      MyApp.app -file
+        MyApp.app -file
 
     the following make_dmg paramenters are generated:
 
-      -file <layer_center_x_coordinate>,<layer_center_y_coordinate> MyApp.app
-      -icon-size <layer_width>
+        -file <layer_center_x_coordinate>,<layer_center_y_coordinate> MyApp.app
+        -icon-size <layer_width>
 
     **NB** the `-iconsize` will be set to the layer width.
 
