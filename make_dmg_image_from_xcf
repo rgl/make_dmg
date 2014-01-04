@@ -1,0 +1,176 @@
+#!/usr/bin/python
+#
+# This creates a png file from a layered GIMP xcf file and outputs the
+# make_dmg arguments needed to show it.  See the included example.xcf.
+#
+# The layer names are interpreted.  If the name ends with:
+#
+#   * -hide
+#
+#       the layer is hidden from the rendered output file.
+#
+#   * -file
+#
+#       a make_dmg "-file" is generated.  for example, if the layer name is:
+#
+#           MyApp.app -file
+#
+#       the following make_dmg paramenters are generated:
+#
+#           -file <layer_center_x_coordinate>,<layer_center_y_coordinate> MyApp.app
+#           -icon-size <layer_width>
+#
+#       NB the -iconsize will be set to the layer width.
+#
+#   * -symlink
+#
+#       same as "-file" argument described above, but with "-symlink" text.
+#
+# -- Rui Lopes (ruilopes.com)
+
+import argparse
+import json
+import os.path
+import re
+import subprocess
+from pipes import quote
+
+def file_exists(path):
+    if not os.path.isfile(path):
+        raise argparse.ArgumentTypeError("%s file does not exist" % (path, ))
+    return path
+
+parser = argparse.ArgumentParser()
+parser.add_argument("--gimp-path", type=file_exists, help="path to the gimp application binary", default="/Applications/GIMP.app/Contents/MacOS/GIMP")
+parser.add_argument("input_file", type=file_exists, help="path to the input .xcf file")
+parser.add_argument("output_file", nargs="?", help="path to the output .png file.\n\nif not specified, it will be the same as input_xcf_path but with the extension changed to png.")
+args = parser.parse_args()
+
+gimp_path = args.gimp_path
+xcf_path = args.input_file
+png_path = args.output_file
+
+if not png_path:
+    png_path = os.path.splitext(xcf_path)[0] + ".png"
+
+gimp_script_template = '''
+import json
+
+config = json.loads('@config@')
+path = config["path"]
+png_path = config["png_path"]
+
+def flatten_layers(drawable, visible=True):
+    for layer in drawable.layers:
+        layer_visible = visible and layer.visible
+        yield (layer, layer_visible)
+        if not hasattr(layer, 'layers'):
+            continue
+        for l in flatten_layers(layer, layer_visible):
+            yield l
+
+image = pdb.gimp_xcf_load(0, path, path)
+
+layers = list(flatten_layers(image))
+
+result = {
+    "width": image.width,
+    "height": image.height,
+    "layers": [
+        {
+            "visible": visible,
+            "x": layer.offsets[0],
+            "y": layer.offsets[1],
+            "width": layer.width,
+            "height": layer.height,
+            "name": layer.name
+        }
+        for layer, visible in layers
+    ]
+}
+
+pdb.gimp_image_undo_disable(image)
+
+for layer, _ in layers:
+    if layer.name == "-hide" or layer.name.endswith(" -hide"):
+        layer.visible = False
+
+merged_layer = image.merge_visible_layers(CLIP_TO_IMAGE)
+
+pdb.file_png_save2(
+    image,
+    merged_layer,
+    png_path,
+    png_path,
+    0,  # interlacing (Adam7)
+    9,  # compression level (0-9)
+    0,  # save background color
+    0,  # save gamma
+    0,  # save layer offset
+    1,  # save resolution
+    0,  # save creation time
+    0,  # save comment 
+    1   # save color values from transparent pixels
+)
+
+print("RESULT " + json.dumps(result, separators=(',', ':')))
+'''
+
+config = json.dumps({"path":xcf_path, "png_path":png_path}, separators=(',', ':')).replace("\\", "\\\\").replace("'", "\\'")
+
+gimp_script = gimp_script_template.replace("@config@", config)
+
+gimp_command_line = [
+    gimp_path,
+    "--console-messages",
+    "--no-data",
+    #"--no-fonts",
+    "--no-interface",
+    "--batch-interpreter=python-fu-eval",
+    "--batch", "-",
+    "--batch", "pdb.gimp_quit(0)"
+]
+
+process = subprocess.Popen(gimp_command_line, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, close_fds=True)
+output = process.communicate(gimp_script)[0]
+
+output_result_re = re.compile(r'^RESULT (.+)$', re.MULTILINE)
+
+m = output_result_re.search(output)
+
+if not m:
+    raise Exception("failed to process the given xcf file. the following gimp execution output might have a clue about the error.\n%s" % output)
+
+result = json.loads(m.group(1))
+
+make_dmg_arg_re = re.compile(r'(.+) -(file|symlink)$')
+
+make_dmg_args = [
+    "-image %s" % quote(png_path)
+]
+
+icon_size = 128
+
+for layer in result["layers"]:
+    m = make_dmg_arg_re.match(layer["name"])
+
+    if not m:
+        continue
+
+    arg_name = m.group(2)
+    arg_value = m.group(1)
+
+    make_dmg_args.append(
+        "-%s %s,%s %s" % (
+            arg_name,
+            layer["x"] + layer["width"] / 2,
+            layer["y"] + layer["height"] / 2,
+            quote(arg_value)
+        )
+    )
+
+    icon_size = layer["width"]
+
+make_dmg_args.append("-icon-size %d" % icon_size)
+
+print " ".join(make_dmg_args)
