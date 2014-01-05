@@ -64,12 +64,6 @@ And try it out:
 
     open MyApp.dmg
 
-**NB** if you don't see the background image, try to recreate the dmg after changing its type:
-
-    sed -i '' -e 's,type => 5,type => 4,g' make_dmg
-
-**NB** I'm still looking for a way to automatically set the correct dmg type.
-
 
 # gimp
 
